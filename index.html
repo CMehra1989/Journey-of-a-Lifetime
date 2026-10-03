@@ -74,6 +74,7 @@ h1{margin:0;font:700 24px/1 'Bricolage Grotesque','Figtree',system-ui,sans-serif
 
 /* collage */
 .collage .tile{position:absolute;transform:rotate(var(--r,0deg));transition:transform .35s;animation:pop .6s backwards;animation-delay:calc(var(--d,0)*60ms)}
+.collage .tile.fixed .mw img,.collage .tile.fixed .mw video{object-fit:cover;object-position:50% 30%}
 .collage .nav{z-index:150;width:58px;height:58px;display:grid;place-items:center;padding:0;color:#fff;
   background:linear-gradient(135deg,rgba(255,255,255,.38),rgba(255,255,255,.12));
   border:1.5px solid rgba(255,255,255,.65);backdrop-filter:blur(10px) saturate(1.4);-webkit-backdrop-filter:blur(10px) saturate(1.4);
@@ -236,11 +237,32 @@ function sampleSvg(i){
 var samples=[];for(var i=0;i<9;i++)samples.push({id:'s'+i,folder:'Sample',name:'Sample '+(i+1),type:'image',url:sampleSvg(i),sample:true});
 
 /* ---------- bundled photos (shown by default) ---------- */
-var PAGE=5; /* photos shown at once in the collage */
+var PAGE=3; /* photos shown at once in the collage */
 /* Every top-level repo folder becomes a tab. On GitHub Pages the folder list is read live from the
    repo; this list is only the fallback when that is unavailable (offline, rate limit, local file). */
 var BUNDLED=['Vaishno Devi 2023/454DB216-1EA8-4852-A869-5CE016A9F405.JPG','Vaishno Devi 2023/0362A76F-4642-41EC-9A8D-8154F42DF06A.JPG','Vaishno Devi 2023/541D9B8C-F1CB-4984-B044-85D7606E2597.JPG','Vaishno Devi 2023/87635430-7992-45F2-86CA-F863CF41E0C6.JPG','Vaishno Devi 2023/A06EC386-2E62-4A3C-8A35-8B7A570BC820.JPG','Vaishno Devi 2023/D8AA3D67-06C2-46FC-9697-CBAD03304034.JPG','Vaishno Devi 2023 -2/454DB216-1EA8-4852-A869-5CE016A9F405.JPG','Vaishno Devi 2023 -2/87A59FFD-89D4-456B-A028-1604C4D7C1E0.JPG','Vaishno Devi 2023 -2/IMG_0826.JPG'];
 var MEDIA_RE=/\.(jpe?g|png|gif|webp|avif|bmp|mp4|webm|mov|m4v)$/i,VIDEO_RE=/\.(mp4|webm|mov|m4v)$/i;
+/* Folder "created" date = date of the first commit that touched it. Never changes, so it is cached per folder. */
+function folderDates(folders){
+  var m=location.hostname.match(/^([^.]+)\.github\.io$/i),repo=location.pathname.split('/')[1],cache={};
+  try{cache=JSON.parse(localStorage.getItem('moodwall.fdates')||'{}')||{}}catch(e){}
+  if(!m||!repo)return Promise.resolve(cache);
+  var base='https://api.github.com/repos/'+m[1]+'/'+repo+'/commits?per_page=1&path=';
+  function get(url){
+    var ctl=window.AbortController?new AbortController():null,t=setTimeout(function(){if(ctl)ctl.abort()},5000);
+    return fetch(url,ctl?{signal:ctl.signal}:{}).then(function(r){clearTimeout(t);if(!r.ok)throw 0;return r});
+  }
+  return Promise.all(folders.filter(function(f){return !cache[f]}).map(function(f){
+    var u=base+encodeURIComponent(f);
+    return get(u).then(function(r){
+      var l=(r.headers.get('Link')||'').match(/[?&]page=(\d+)[^>]*>;\s*rel="last"/);
+      return l?get(u+'&page='+l[1]):r;   /* last page of a 1-per-page list = oldest commit */
+    }).then(function(r){return r.json()}).then(function(j){
+      var d=j&&j[0]&&j[0].commit&&(j[0].commit.committer||j[0].commit.author);
+      if(d&&d.date)cache[f]=d.date;
+    }).catch(function(){});
+  })).then(function(){try{localStorage.setItem('moodwall.fdates',JSON.stringify(cache))}catch(e){}return cache});
+}
 function discoverPhotos(){
   var m=location.hostname.match(/^([^.]+)\.github\.io$/i),repo=location.pathname.split('/')[1];
   if(!m||!repo)return Promise.resolve(null);
@@ -336,6 +358,20 @@ function collage(list){
   var W2=W-2*P,H2=H-2*P-(phone&&list.length>PAGE?60:0);
   var cols=Math.max(1,Math.round(Math.sqrt(N*W2/H2))),rows=Math.ceil(N/cols);
   var cw=W2/cols,ch=H2/rows,R=rng(state.seed*101+7),AS=[.8,1.15,.9,1,.75,1.3];
+  /* three photos: the two outer ones identical in size and mirrored in tilt, the middle one larger and on top */
+  if(N===3){
+    var A=.78,GROW=1.22,across=W2>=H2,CX=P+W2/2,CY=P+H2/2;
+    var ws=across?Math.min(W2*.9/(2+GROW),H2*.96*A/GROW):Math.min(H2*.9*A/(2+GROW),W2*.96/GROW);
+    var hs=ws/A,wm=ws*GROW,hm=hs*GROW,off=across?(wm+ws)/2-ws*.06:(hm+hs)/2-hs*.06;
+    [[-1,ws,hs,-4,1],[0,wm,hm,0,3],[1,ws,hs,4,2]].forEach(function(s,k){
+      var x=across?CX+s[0]*off:CX,y=across?CY:CY+s[0]*off;
+      var t=mkTile(list[(state.batch+k)%list.length],k);
+      t.classList.add('fixed'); /* no per-photo resizing, so the sizes stay uniform */
+      t.style.cssText+=';left:'+(x-s[1]/2)+'px;top:'+(y-s[2]/2)+'px;width:'+s[1]+'px;height:'+s[2]+'px;z-index:'+s[4]+';--r:'+s[3]+'deg;--d:'+k;
+      stage.appendChild(t);
+    });
+    N=0; /* skip the free-form loop below */
+  }
   for(var k=0;k<N;k++){
     var r=Math.floor(k/cols),c=k%cols,inRow=(r===rows-1)?N-r*cols:cols;
     var cx=P+(cols-inRow)*cw/2+(c+.5)*cw+(R()-.5)*cw*.15,cy=P+(r+.5)*ch+(R()-.5)*ch*.1;
@@ -635,9 +671,16 @@ document.addEventListener('keydown',function(e){
 (async function(){
   var paths=await discoverPhotos();
   if(!paths){try{paths=JSON.parse(localStorage.getItem('moodwall.tree')||'null')}catch(e){}}
-  (paths||BUNDLED).slice().sort(function(a,b){
+  paths=paths||BUNDLED;
+  var names=[];paths.forEach(function(p){var f=p.split('/')[0];if(names.indexOf(f)<0)names.push(f)});
+  var dates=await folderDates(names);
+  /* newest-created folder first; folders with no known date go last, alphabetically */
+  paths.slice().sort(function(a,b){
     var fa=a.split('/')[0],fb=b.split('/')[0];
-    return fa===fb?(a<b?-1:1):(fa<fb?-1:1);
+    if(fa===fb)return a<b?-1:1;
+    var da=dates[fa]||'',db=dates[fb]||'';
+    if(da!==db)return da>db?-1:1;
+    return fa<fb?-1:1;
   }).forEach(function(p){
     var s=p.indexOf('/');
     items.push({id:'b:'+p,folder:p.slice(0,s),name:p.slice(s+1),type:VIDEO_RE.test(p)?'video':'image',url:encodeURI(p)});
