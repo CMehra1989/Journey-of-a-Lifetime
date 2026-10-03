@@ -202,6 +202,10 @@ function sampleSvg(i){
 }
 var samples=[];for(var i=0;i<9;i++)samples.push({id:'s'+i,folder:'Sample',name:'Sample '+(i+1),type:'image',url:sampleSvg(i),sample:true});
 
+/* ---------- bundled photos (shown by default) ---------- */
+var BUNDLED_DIR='Vaishno Devi 2023';
+var BUNDLED=['0362A76F-4642-41EC-9A8D-8154F42DF06A.JPG','541D9B8C-F1CB-4984-B044-85D7606E2597.JPG','87635430-7992-45F2-86CA-F863CF41E0C6.JPG','A06EC386-2E62-4A3C-8A35-8B7A570BC820.JPG','D8AA3D67-06C2-46FC-9697-CBAD03304034.JPG'];
+
 /* ---------- storage ---------- */
 var store={db:null,
   init:function(){var self=this;return new Promise(function(ok){try{var r=indexedDB.open('moodwall',2);
@@ -552,6 +556,7 @@ var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeou
 
 /* ---------- boot ---------- */
 (async function(){
+  BUNDLED.forEach(function(n){items.push({id:'b:'+n,folder:BUNDLED_DIR,name:n,type:'image',url:encodeURI(BUNDLED_DIR+'/'+n)})});
   await store.init();
   var recs=await store.all();
   (recs||[]).forEach(function(r){if(r&&r.blob)items.push({id:r.id,folder:r.folder,name:r.name,type:r.type,blob:r.blob,url:URL.createObjectURL(r.blob)})});
