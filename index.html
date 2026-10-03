@@ -62,6 +62,7 @@ h1{margin:0;font:700 24px/1 'Bricolage Grotesque','Figtree',system-ui,sans-serif
 
 /* collage */
 .collage .tile{position:absolute;transform:rotate(var(--r,0deg));transition:transform .35s;animation:pop .6s backwards;animation-delay:calc(var(--d,0)*60ms)}
+.collage .nav{z-index:150}
 .collage .tile:hover{transform:rotate(0deg) scale(1.06);z-index:99!important}
 @keyframes pop{from{opacity:0;transform:rotate(var(--r,0deg)) scale(.7)}}
 
@@ -204,7 +205,8 @@ var samples=[];for(var i=0;i<9;i++)samples.push({id:'s'+i,folder:'Sample',name:'
 
 /* ---------- bundled photos (shown by default) ---------- */
 var BUNDLED_DIR='Vaishno Devi 2023';
-var BUNDLED=['0362A76F-4642-41EC-9A8D-8154F42DF06A.JPG','541D9B8C-F1CB-4984-B044-85D7606E2597.JPG','87635430-7992-45F2-86CA-F863CF41E0C6.JPG','A06EC386-2E62-4A3C-8A35-8B7A570BC820.JPG','D8AA3D67-06C2-46FC-9697-CBAD03304034.JPG'];
+var PAGE=5; /* photos shown at once in the collage */
+var BUNDLED=['454DB216-1EA8-4852-A869-5CE016A9F405.JPG','0362A76F-4642-41EC-9A8D-8154F42DF06A.JPG','541D9B8C-F1CB-4984-B044-85D7606E2597.JPG','87635430-7992-45F2-86CA-F863CF41E0C6.JPG','A06EC386-2E62-4A3C-8A35-8B7A570BC820.JPG','D8AA3D67-06C2-46FC-9697-CBAD03304034.JPG'];
 
 /* ---------- storage ---------- */
 var store={db:null,
@@ -275,7 +277,7 @@ function updateShapes(){
 /* ---------- layouts ---------- */
 function collage(list){
   var W=stage.clientWidth,H=stage.clientHeight,P=Math.max(14,Math.round(Math.min(W,H)*.025));
-  var N=Math.min(list.length,W<600?6:9);
+  var N=Math.min(list.length,PAGE);
   var W2=W-2*P,H2=H-2*P;
   var cols=Math.max(1,Math.round(Math.sqrt(N*W2/H2))),rows=Math.ceil(N/cols);
   var cw=W2/cols,ch=H2/rows,R=rng(state.seed*101+7),AS=[.8,1.15,.9,1,.75,1.3];
@@ -289,6 +291,15 @@ function collage(list){
     t._box={cx:cx,cy:cy,mw:W2*.55,mh:Math.min(ch*1.15,H2),W:W,H:H,P:P,rot:Math.abs(rot)*Math.PI/180};
     t.style.cssText+=';left:'+(cx-w/2)+'px;top:'+(cy-h/2)+'px;width:'+w+'px;height:'+h+'px;z-index:'+Math.floor(R()*N)+';--r:'+rot.toFixed(1)+'deg;--d:'+k;
     stage.appendChild(t);
+  }
+  /* more photos than fit: arrows page through them; the last page wraps round to the start to stay full */
+  if(list.length>PAGE){
+    function turn(d){state.batch=((state.batch+d*PAGE)%list.length+list.length)%list.length;last=Date.now();render()}
+    var pb=document.createElement('button'),nb=document.createElement('button');
+    pb.className='nav prev';pb.type='button';pb.setAttribute('aria-label','Previous photos');pb.innerHTML='&#8249;';
+    nb.className='nav next';nb.type='button';nb.setAttribute('aria-label','Next photos');nb.innerHTML='&#8250;';
+    pb.onclick=function(){turn(-1)};nb.onclick=function(){turn(1)};
+    stage.appendChild(pb);stage.appendChild(nb);
   }
 }
 function bento(list){
