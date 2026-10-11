@@ -20,35 +20,18 @@ button,input{font:inherit;color:inherit}
 button{cursor:pointer}
 a:focus-visible,button:focus-visible,input:focus-visible,.card:focus-visible,.pic:focus-visible{outline:3px solid #e9937c;outline-offset:3px}
 
-/* top bar */
-.bar{background:var(--black);color:var(--white);height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;
-  padding-top:env(safe-area-inset-top,0px);height:calc(64px + env(safe-area-inset-top,0px))}
-.bar .who{font-weight:400;font-size:20px;letter-spacing:.06em}
-.bar .add{background:transparent;color:var(--white);border:1.5px solid var(--white);padding:8px 18px;font-weight:600;letter-spacing:.04em}
-.bar .add:hover{background:var(--white);color:var(--black)}
-
 /* hero */
 .hero{position:relative;height:clamp(220px,28vw,340px);overflow:hidden;background:#d9d6e6;display:grid;place-items:center;text-align:center}
 .hero .bg{position:absolute;inset:-12px;background-size:cover;background-position:center;filter:blur(3px);transition:opacity 1.4s}
 .hero .wash{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.28),rgba(255,255,255,.28))}
 .hero .in{position:relative;padding:0 16px}
 .hero h1{margin:0;font:800 clamp(32px,6.2vw,72px)/1 'Montserrat',sans-serif;letter-spacing:-.01em;text-transform:uppercase;color:var(--black)}
-.hero .sub{display:inline-block;margin-top:22px;background:rgba(255,255,255,.94);padding:14px 20px;font:italic 500 clamp(18px,2.2vw,26px)/1 'Newsreader',Georgia,serif}
 
 /* tabs */
 .tabs{background:var(--band);margin-top:30px;display:flex;justify-content:center;align-items:center;gap:26px;height:46px}
 .tabs button{background:none;border:0;padding:0 2px;height:46px;font-weight:600;font-size:15px;letter-spacing:.08em;text-transform:uppercase;border-bottom:3px solid transparent;display:flex;align-items:center}
 .tabs button[aria-selected="true"]{border-bottom-color:var(--black)}
 .tabs i{width:7px;height:7px;border-radius:50%;background:var(--black);display:block}
-
-/* search */
-.search{background:var(--black);margin-top:46px;padding:26px 16px 22px}
-.search label{display:flex;align-items:flex-end;gap:12px;max-width:1160px;margin:0 auto;padding-left:clamp(0px,14vw,200px)}
-.search svg{flex:none;width:clamp(34px,5vw,60px);height:auto;stroke:var(--white);fill:none;stroke-width:3.5;stroke-linecap:round;margin-bottom:6px}
-.search input{flex:1;min-width:0;background:transparent;border:0;border-bottom:2px solid var(--white);color:var(--white);
-  font:300 clamp(28px,4.2vw,52px)/1.2 'Josefin Sans',sans-serif;letter-spacing:.05em;padding:0 0 4px;border-radius:0}
-.search input::placeholder{color:var(--white);opacity:1}
-.search input:focus-visible{outline:none;border-bottom-width:4px}
 
 /* view toggle + context line */
 .tools{display:flex;justify-content:center;align-items:center;gap:22px;padding:32px 0 6px}
@@ -76,6 +59,14 @@ a:focus-visible,button:focus-visible,input:focus-visible,.card:focus-visible,.pi
 .card:hover img{transform:scale(1.05)}
 .card span{position:absolute;left:0;right:0;bottom:0;padding:34px 16px 14px;font-weight:600;font-size:18px;background:linear-gradient(transparent,rgba(0,0,0,.65))}
 .card small{display:block;font-weight:300;font-size:14px;opacity:.85}
+
+/* pager */
+.pager{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;padding:0 16px 70px}
+.pager button{min-width:42px;height:42px;padding:0 14px;background:var(--white);border:1.5px solid var(--black);font-weight:600;font-size:16px}
+.pager button:hover:not(:disabled):not([aria-current]){background:var(--band)}
+.pager button[aria-current="page"]{background:var(--black);color:var(--white);cursor:default}
+.pager button:disabled{opacity:.3;cursor:default}
+.pager span{padding:0 4px;color:#777}
 
 .empty{text-align:center;padding:60px 16px;color:#666;font-size:18px}
 .notice{background:var(--band);text-align:center;padding:12px 16px;font-size:15px}
@@ -106,29 +97,19 @@ body.drag::after{content:"Drop to add";position:fixed;inset:10px;border:3px dash
 @media (max-width:760px){
   :root{--cols:2;--gap:10px}
   .wrap{padding:6px 12px 40px}
-  .bar{padding-left:14px;padding-right:14px}
-  .bar .who{font-size:16px}
-  .search label{padding-left:0}
   .lb{padding:56px 8px}
   .lb .p,.lb .n{top:auto;bottom:6px;transform:none}
 }
-@media (max-width:420px){.hero .sub{margin-top:14px;padding:10px 14px}}
 @media (prefers-reduced-motion:reduce){.card img,.hero .bg{transition:none}}
 </style>
 </head>
 <body>
-
-<header class="bar">
-  <div class="who">Chetan Mehra</div>
-  <button class="add" id="openAdd" type="button">Add photos</button>
-</header>
 
 <section class="hero" aria-label="Chetan Mehra">
   <div class="bg" id="heroBg"></div>
   <div class="wash"></div>
   <div class="in">
     <h1>Chetan Mehra</h1>
-    <div class="sub">Photo Gallery</div>
   </div>
 </section>
 
@@ -137,13 +118,6 @@ body.drag::after{content:"Drop to add";position:fixed;inset:10px;border:3px dash
   <i aria-hidden="true"></i>
   <button type="button" role="tab" id="tabFolders" aria-selected="false">Folders</button>
 </nav>
-
-<div class="search">
-  <label>
-    <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="26" cy="26" r="20"/><path d="M41 41l18 18"/></svg>
-    <input type="search" id="q" placeholder="search" aria-label="Search photos by folder or file name" autocomplete="off">
-  </label>
-</div>
 
 <div class="tools" id="tools">
   <button type="button" id="vGrid" aria-label="Grid view" aria-pressed="true">
@@ -158,6 +132,7 @@ body.drag::after{content:"Drop to add";position:fixed;inset:10px;border:3px dash
 <div class="notice" id="notice" hidden>These are sample tiles. <button type="button" id="noticeAdd">Add your own photos</button></div>
 
 <main class="wrap" id="main"></main>
+<nav class="pager" id="pager" aria-label="Pages" hidden></nav>
 
 <div class="sheet" id="sheet" hidden>
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgT">
@@ -180,7 +155,8 @@ body.drag::after{content:"Drop to add";position:fixed;inset:10px;border:3px dash
 var $=function(s){return document.querySelector(s)};
 
 /* ---------- state ---------- */
-var state={tab:'gallery',view:'grid',folder:'all',q:''};
+var state={tab:'gallery',view:'grid',folder:'all',q:'',page:0};
+var PER=10,lastKey='';
 var items=[],shown=[];
 
 /* ---------- sample tiles (only until real photos exist) ---------- */
@@ -277,10 +253,15 @@ function mediaTag(it,lazy){
   return el;
 }
 function renderGallery(){
-  shown=visible();
+  var all=visible();
+  var key=state.folder+'|'+state.q;
+  if(key!==lastKey){state.page=0;lastKey=key}
+  var pages=Math.max(1,Math.ceil(all.length/PER));
+  if(state.page>=pages)state.page=pages-1;
+  shown=all.slice(state.page*PER,state.page*PER+PER);
   document.body.classList.toggle('list',state.view==='list');
   main.innerHTML='';
-  if(!shown.length){main.innerHTML='<div class="empty">No photos match that search.</div>';return}
+  if(!shown.length){main.innerHTML='<div class="empty">No photos match that search.</div>';renderPager(1);return}
   var m=document.createElement('div');m.className='masonry';
   shown.forEach(function(it,idx){
     var b=document.createElement('button');b.type='button';b.className='pic';b.setAttribute('aria-label','Open '+it.name);
@@ -290,10 +271,35 @@ function renderGallery(){
     m.appendChild(b);
   });
   main.appendChild(m);
+  renderPager(pages);
+}
+function renderPager(pages){
+  var el=$('#pager');el.innerHTML='';
+  if(pages<2){el.hidden=true;return}
+  el.hidden=false;
+  function go(p){state.page=p;renderGallery();$('.tabs').scrollIntoView({behavior:'smooth'})}
+  function btn(label,p,aria,disabled,current){
+    var b=document.createElement('button');b.type='button';b.textContent=label;b.setAttribute('aria-label',aria);
+    if(disabled)b.disabled=true;
+    if(current)b.setAttribute('aria-current','page');
+    else b.onclick=function(){go(p)};
+    el.appendChild(b);
+  }
+  btn('\u2039 Prev',state.page-1,'Previous page',state.page===0,false);
+  var nums=[];
+  for(var i=0;i<pages;i++){if(i===0||i===pages-1||Math.abs(i-state.page)<=1)nums.push(i)}
+  var prev=-1;
+  nums.forEach(function(i){
+    if(prev!==-1&&i-prev>1){var dots=document.createElement('span');dots.textContent='\u2026';el.appendChild(dots)}
+    btn(String(i+1),i,'Page '+(i+1),false,i===state.page);
+    prev=i;
+  });
+  btn('Next \u203A',state.page+1,'Next page',state.page===pages-1,false);
 }
 function renderFolders(){
   var q=state.q.trim().toLowerCase(),list=folderList().filter(function(f){return !q||f.name.toLowerCase().indexOf(q)>-1});
   document.body.classList.remove('list');
+  $('#pager').hidden=true;
   main.innerHTML='';
   if(!list.length){main.innerHTML='<div class="empty">No folders match that search.</div>';return}
   var g=document.createElement('div');g.className='folders';
@@ -303,7 +309,7 @@ function renderFolders(){
     if(cov){var im=document.createElement('img');im.src=cov.url;im.alt='';im.loading='lazy';b.appendChild(im)}
     var sp=document.createElement('span');sp.textContent=f.name;
     var sm=document.createElement('small');sm.textContent=f.count+(f.count===1?' photo':' photos');sp.appendChild(sm);b.appendChild(sp);
-    b.onclick=function(){state.folder=f.name;state.q='';$('#q').value='';setTab('gallery')};
+    b.onclick=function(){state.folder=f.name;state.q='';setTab('gallery')};
     g.appendChild(b);
   });
   main.appendChild(g);
@@ -381,7 +387,7 @@ function openLb(start){
 var sheet=$('#sheet');
 function openSheet(){sheet.hidden=false;$('#fname').focus()}
 function closeSheet(){sheet.hidden=true}
-$('#openAdd').onclick=openSheet;$('#noticeAdd').onclick=openSheet;$('#closeAdd').onclick=closeSheet;
+$('#noticeAdd').onclick=openSheet;$('#closeAdd').onclick=closeSheet;
 sheet.addEventListener('click',function(e){if(e.target===sheet)closeSheet()});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!sheet.hidden)closeSheet()});
 $('#pickFiles').onclick=function(){$('#fFiles').click()};
@@ -398,7 +404,7 @@ function addEntries(entries){
     store.put(rec);added++;names[folder]=1;last=folder;
   });
   if(!added)return;
-  state.tab='gallery';state.q='';$('#q').value='';
+  state.tab='gallery';state.q='';
   state.folder=Object.keys(names).length===1?last:'all';
   render();setHero();closeSheet();
 }
@@ -430,9 +436,6 @@ $('#tabGallery').onclick=function(){state.folder='all';setTab('gallery')};
 $('#tabFolders').onclick=function(){setTab('folders')};
 $('#vGrid').onclick=function(){state.view='grid';render()};
 $('#vList').onclick=function(){state.view='list';render()};
-var qt;$('#q').addEventListener('input',function(){
-  var v=this.value;clearTimeout(qt);qt=setTimeout(function(){state.q=v;if(state.tab==='gallery')renderGallery();else renderFolders()},150);
-});
 
 /* ---------- boot ---------- */
 (async function(){
