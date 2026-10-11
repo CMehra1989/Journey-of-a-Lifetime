@@ -10,7 +10,7 @@
 <style>
 :root{
   box-sizing:border-box;
-  --black:#000; --white:#fff; --ink:#111; --band:#f7f7f7; --mute:#b9b9b9; --gap:10px;
+  --black:#000; --white:#fff; --ink:#111; --band:#f7f7f7; --mute:#b9b9b9; --gap:6px;
 }
 *,*::before,*::after{box-sizing:inherit}
 html,body{margin:0}
@@ -43,19 +43,19 @@ a:focus-visible,button:focus-visible,input:focus-visible,.pic:focus-visible{outl
 .ctx .danger{color:#b3321a}
 
 /* gallery: fills the space left on the screen, no page scroll */
-.wrap{flex:1;min-height:0;overflow:auto;padding:0 20px 14px}
+.wrap{flex:1;min-height:0;overflow:hidden;padding:0 0 8px}
 .masonry{position:relative;height:100%}
 .pic{position:absolute;display:block;overflow:hidden;background:#eee;cursor:zoom-in;border:0;padding:0;transition:opacity .35s}
 .pic img,.pic video{display:block;width:100%;height:100%;object-fit:cover}
 .pic video{pointer-events:none}
 
-/* pager */
-.pager{flex:none;display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 16px 12px}
-.pager button{min-width:34px;height:34px;padding:0 12px;background:var(--white);border:1.5px solid var(--black);font-weight:600;font-size:15px}
-.pager button:hover:not(:disabled):not([aria-current]){background:var(--band)}
-.pager button[aria-current="page"]{background:var(--black);color:var(--white);cursor:default}
-.pager button:disabled{opacity:.3;cursor:default}
-.pager span{padding:0 4px;color:#777}
+/* page arrows: middle of the left and right edges */
+.arrow{position:fixed;top:50%;transform:translateY(-50%);z-index:50;width:44px;height:44px;display:grid;place-items:center;padding:0;background:rgba(0,0,0,.5);border:0;border-radius:50%}
+.arrow svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.arrow.prev{left:10px}
+.arrow.next{right:10px}
+.arrow:hover:not(:disabled){background:rgba(0,0,0,.8)}
+.arrow:disabled{opacity:.2;cursor:default}
 
 .empty{text-align:center;padding:60px 16px;color:#666;font-size:18px}
 .notice{flex:none;background:var(--band);text-align:center;padding:12px 16px;font-size:15px}
@@ -83,8 +83,12 @@ body.drag::after{content:"Drop to add";position:fixed;inset:10px;border:3px dash
 .lb .c{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#ddd;font-size:14px;letter-spacing:.06em}
 
 @media (max-width:760px){
-  :root{--gap:6px}
-  .wrap{padding:0 10px 12px}
+  :root{--gap:4px}
+  .wrap{padding:0 0 6px}
+  .arrow{width:34px;height:34px}
+  .arrow svg{width:18px;height:18px}
+  .arrow.prev{left:4px}
+  .arrow.next{right:4px}
   .hero{height:clamp(80px,14vh,140px)}
   .lb{padding:56px 8px}
   .lb .p,.lb .n{top:auto;bottom:6px;transform:none}
@@ -108,7 +112,8 @@ body.drag::after{content:"Drop to add";position:fixed;inset:10px;border:3px dash
 <div class="notice" id="notice" hidden>These are sample tiles. <button type="button" id="noticeAdd">Add your own photos</button></div>
 
 <main class="wrap" id="main"></main>
-<nav class="pager" id="pager" aria-label="Pages" hidden></nav>
+<button class="arrow prev" id="prevPage" type="button" aria-label="Previous photos" hidden><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+<button class="arrow next" id="nextPage" type="button" aria-label="Next photos" hidden><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
 
 <div class="sheet" id="sheet" hidden>
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgT">
@@ -228,7 +233,7 @@ function mediaTag(it,lazy){
   else{el=document.createElement('img');el.src=it.url;el.alt=it.name;el.draggable=false;if(lazy)el.loading='lazy'}
   return el;
 }
-var renderId=0,current=null;
+var renderId=0,current=null,pageCount=1;
 function whenSized(el,it){
   return new Promise(function(done){
     var t=setTimeout(done,4000);
@@ -242,12 +247,12 @@ function aspectOf(el){
   var w=el.naturalWidth||el.videoWidth,h=el.naturalHeight||el.videoHeight;
   return (w&&h)?w/h:1.5;
 }
-/* split photos (in order) into R rows; rows alternate slightly bigger / smaller so sizes vary */
-function splitRows(ar,R){
+/* split photos (in order) into R rows; amp makes alternate rows a little bigger / smaller */
+function splitRows(ar,R,amp){
   var n=ar.length;if(R>n)return null;
   var pre=[0];ar.forEach(function(a,i){pre.push(pre[i]+a)});
   var tot=pre[n],w=[],ws=0,r,i,j;
-  for(r=0;r<R;r++){var x=R>1?(r%2===0?.88:1.12):1;w.push(x);ws+=x}
+  for(r=0;r<R;r++){var x=R>1?(r%2===0?1-amp:1+amp):1;w.push(x);ws+=x}
   var tgt=w.map(function(x){return tot*x/ws});
   var INF=1e18,dp=[],cut=[];
   for(r=0;r<=R;r++){dp.push(new Array(n+1).fill(INF));cut.push(new Array(n+1).fill(0))}
@@ -261,37 +266,53 @@ function splitRows(ar,R){
   for(r=R;r>=1;r--){j=cut[r][i];var row=[];for(var k=j;k<i;k++)row.push(k);rows.unshift(row);i=j}
   return rows;
 }
-/* place every photo at its own proportions so the whole set exactly fits the free space */
+function putTile(b,x,y,w,h){
+  b.style.left=x+'px';b.style.top=y+'px';b.style.width=w+'px';b.style.height=h+'px';b.style.opacity=1;
+}
+/* Every row runs edge to edge and the rows together fill the full height: no side space.
+   Photos keep their own proportions as closely as possible (a light crop evens out the fit).
+   Wide photos get wider tiles, tall photos narrower ones, and rows differ in height. */
 function layoutGallery(){
   if(!current)return;
   var box=current.box,tiles=current.tiles;
   var W=box.clientWidth,H=box.clientHeight;
   if(!W||!H)return;
-  var g=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||10;
+  var g=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'))||6;
   var ar=tiles.map(function(t){return aspectOf(t.el)});
-  var n=ar.length,best=null;
-  for(var R=1;R<=n;R++){
-    var rows=splitRows(ar,R);if(!rows)continue;
-    var hs=rows.map(function(r){var sum=0;r.forEach(function(i){sum+=ar[i]});return (W-g*(r.length-1))/sum});
-    var sumH=0;hs.forEach(function(h){sumH+=h});
-    var sc=Math.min(1,(H-g*(R-1))/sumH);
-    if(sc<=0)continue;
-    var area=0;rows.forEach(function(r,k){area+=hs[k]*sc*(W-g*(r.length-1))*sc});
-    if(!best||area>best.area)best={rows:rows,hs:hs,sc:sc,area:area};
-  }
-  if(!best)return;
-  var totalH=g*(best.rows.length-1);best.hs.forEach(function(h){totalH+=h*best.sc});
-  var y=Math.max(0,(H-totalH)/2);
-  best.rows.forEach(function(r,k){
-    var h=best.hs[k]*best.sc,rowW=g*(r.length-1);
-    r.forEach(function(i){rowW+=ar[i]*h});
-    var x=(W-rowW)/2;
-    r.forEach(function(i){
-      var w=ar[i]*h,b=tiles[i].b;
-      b.style.left=x+'px';b.style.top=y+'px';b.style.width=w+'px';b.style.height=h+'px';b.style.opacity=1;
-      x+=w+g;
+  var n=ar.length,fill=null,fit=null;
+  [0.12,0.06,0].forEach(function(amp){
+    for(var R=1;R<=n;R++){
+      var rows=splitRows(ar,R,amp);if(!rows)continue;
+      var avail=H-g*(R-1);if(avail<=0)continue;
+      var hs=rows.map(function(r){var sum=0;r.forEach(function(i){sum+=ar[i]});return (W-g*(r.length-1))/sum});
+      var sumH=0;hs.forEach(function(h){sumH+=h});
+      var k=sumH/avail;                                   /* 1 = no crop at all */
+      var score=Math.abs(Math.log(k))+(0.12-amp)*0.8;
+      if(!fill||score<fill.score)fill={rows:rows,hs:hs,k:k,score:score};
+      var sc=Math.min(1,avail/sumH),area=0;
+      rows.forEach(function(r,q){area+=hs[q]*sc*(W-g*(r.length-1))*sc});
+      if(!fit||area>fit.area)fit={rows:rows,hs:hs,sc:sc,area:area};
+    }
+  });
+  if(fill&&fill.k>=0.67&&fill.k<=1.5){
+    var y=0;
+    fill.rows.forEach(function(r,q){
+      var nat=fill.hs[q],h=nat/fill.k,x=0;
+      r.forEach(function(i){var w=ar[i]*nat;putTile(tiles[i].b,x,y,w,h);x+=w+g});
+      y+=h+g;
     });
-    y+=h+g;
+    return;
+  }
+  /* very few photos on a page: show them whole, centred, instead of cropping hard */
+  if(!fit)return;
+  var totalH=g*(fit.rows.length-1);fit.hs.forEach(function(h){totalH+=h*fit.sc});
+  var y2=Math.max(0,(H-totalH)/2);
+  fit.rows.forEach(function(r,q){
+    var h=fit.hs[q]*fit.sc,rowW=g*(r.length-1);
+    r.forEach(function(i){rowW+=ar[i]*h});
+    var x2=(W-rowW)/2;
+    r.forEach(function(i){var w=ar[i]*h;putTile(tiles[i].b,x2,y2,w,h);x2+=w+g});
+    y2+=h+g;
   });
 }
 var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(layoutGallery,120)});
@@ -301,6 +322,7 @@ function renderGallery(){
   var key=state.folder+'|'+state.q;
   if(key!==lastKey){state.page=0;lastKey=key}
   var pages=Math.max(1,Math.ceil(all.length/PER));
+  pageCount=pages;
   if(state.page>=pages)state.page=pages-1;
   shown=all.slice(state.page*PER,state.page*PER+PER);
   main.innerHTML='';current=null;
@@ -324,29 +346,20 @@ function renderGallery(){
     layoutGallery();
   });
 }
-function renderPager(pages){
-  var el=$('#pager');el.innerHTML='';
-  if(pages<2){el.hidden=true;return}
-  el.hidden=false;
-  function go(p){state.page=p;renderGallery()}
-  function btn(label,p,aria,disabled,current){
-    var b=document.createElement('button');b.type='button';b.textContent=label;b.setAttribute('aria-label',aria);
-    if(disabled)b.disabled=true;
-    if(current)b.setAttribute('aria-current','page');
-    else b.onclick=function(){go(p)};
-    el.appendChild(b);
-  }
-  btn('\u2039 Prev',state.page-1,'Previous page',state.page===0,false);
-  var nums=[];
-  for(var i=0;i<pages;i++){if(i===0||i===pages-1||Math.abs(i-state.page)<=1)nums.push(i)}
-  var prev=-1;
-  nums.forEach(function(i){
-    if(prev!==-1&&i-prev>1){var dots=document.createElement('span');dots.textContent='\u2026';el.appendChild(dots)}
-    btn(String(i+1),i,'Page '+(i+1),false,i===state.page);
-    prev=i;
-  });
-  btn('Next \u203A',state.page+1,'Next page',state.page===pages-1,false);
+function turnPage(d){
+  var p=state.page+d;
+  if(p<0||p>=pageCount)return;
+  state.page=p;renderGallery();
 }
+function renderPager(pages){
+  var pv=$('#prevPage'),nx=$('#nextPage');
+  if(pages<2){pv.hidden=true;nx.hidden=true;return}
+  pv.hidden=false;nx.hidden=false;
+  pv.disabled=state.page===0;
+  nx.disabled=state.page===pages-1;
+}
+$('#prevPage').onclick=function(){turnPage(-1)};
+$('#nextPage').onclick=function(){turnPage(1)};
 function renderTabs(){
   var el=$('#tabs');el.innerHTML='';
   function tab(label,val){
@@ -466,6 +479,18 @@ window.addEventListener('drop',async function(e){
   }else if(e.dataTransfer){out=Array.from(e.dataTransfer.files).map(function(f){return {file:f,folder:null}})}
   addEntries(out);
 });
+
+/* ---------- keyboard and swipe: change page ---------- */
+document.addEventListener('keydown',function(e){
+  if(document.querySelector('.lb')||!sheet.hidden)return;
+  if(e.key==='ArrowRight')turnPage(1);else if(e.key==='ArrowLeft')turnPage(-1);
+});
+var sx=0,sy=0;
+main.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+main.addEventListener('touchend',function(e){
+  var dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+  if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)turnPage(dx<0?1:-1);
+},{passive:true});
 
 /* ---------- boot ---------- */
 (async function(){
