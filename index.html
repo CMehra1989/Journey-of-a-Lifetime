@@ -24,8 +24,44 @@ a:focus-visible,button:focus-visible,input:focus-visible,.pic:focus-visible{outl
 .hero{position:relative;flex:none;height:clamp(96px,17vh,190px);overflow:hidden;background:#d9d6e6;display:grid;place-items:center;text-align:center}
 .hero .bg{position:absolute;inset:-12px;background-size:cover;background-position:center;filter:blur(3px);transition:opacity 1.4s}
 .hero .wash{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.28),rgba(255,255,255,.28))}
-.hero .in{position:relative;padding:0 16px}
-.hero h1{margin:0;font:800 clamp(24px,min(6.2vw,9vh),64px)/1 'Montserrat',sans-serif;letter-spacing:-.01em;text-transform:uppercase;color:var(--black)}
+.hero .in{position:absolute;inset:0;overflow:hidden}
+.hero h1{margin:0;font:800 clamp(24px,min(6.2vw,9vh),64px)/1.2 'Montserrat',sans-serif;letter-spacing:-.01em;text-transform:uppercase;color:#e53935;text-shadow:0 0 14px rgba(255,255,255,.55)}
+/* one name that glides left to right, then right to left, forever (vertically centred in the banner) */
+.hero{--pass:7s}
+.hero .mover{position:absolute;top:50%;margin:-.6em 0 0;white-space:nowrap;left:12px;transform:translateX(0);animation:nameGo var(--pass) ease-in-out infinite alternate}
+@keyframes nameGo{
+  from{left:12px;transform:translateX(0)}
+  to{left:calc(100% - 12px);transform:translateX(-100%)}
+}
+/* sparkles all around the middle: many of them, each one twinkles in, grows bigger and bigger, then fades out */
+.spark{position:absolute;z-index:2;width:var(--s);height:var(--s);margin:calc(var(--s)/-2) 0 0 calc(var(--s)/-2);color:var(--c);background:currentColor;pointer-events:none;opacity:0;
+  clip-path:polygon(50% 0,59% 41%,100% 50%,59% 59%,50% 100%,41% 59%,0 50%,41% 41%);
+  animation:sparkle var(--t) ease-in-out infinite;animation-delay:var(--d)}
+@keyframes sparkle{
+  0%{opacity:0;transform:scale(0) rotate(0deg)}
+  22%{opacity:1;transform:scale(1) rotate(40deg)}
+  60%{opacity:1;transform:scale(1.7) rotate(110deg)}
+  100%{opacity:0;transform:scale(2.4) rotate(180deg)}
+}
+/* every letter has its own colour, and each letter moves to a new colour every 3 seconds.
+   12 colours x 3s = 36s per cycle; each letter starts one step (3s) ahead of the letter before it,
+   so no two letters ever share a colour. */
+.mover .ch{animation:letterColor 36s linear infinite;animation-delay:calc(var(--i)*-3s)}
+@keyframes letterColor{
+  0.0%,6.5%{color:hsl(0,78%,42%)}
+  8.333%,14.833%{color:hsl(30,78%,42%)}
+  16.667%,23.167%{color:hsl(60,78%,42%)}
+  25.0%,31.5%{color:hsl(90,78%,42%)}
+  33.333%,39.833%{color:hsl(120,78%,42%)}
+  41.667%,48.167%{color:hsl(150,78%,42%)}
+  50.0%,56.5%{color:hsl(180,78%,42%)}
+  58.333%,64.833%{color:hsl(210,78%,42%)}
+  66.667%,73.167%{color:hsl(240,78%,42%)}
+  75.0%,81.5%{color:hsl(270,78%,42%)}
+  83.333%,89.833%{color:hsl(300,78%,42%)}
+  91.667%,98.167%{color:hsl(330,78%,42%)}
+  100%{color:hsl(0,78%,42%)}
+}
 
 /* folder tabs */
 .tabs{flex:none;background:var(--band);margin:12px 0 10px;display:flex;align-items:center;gap:26px;height:44px;overflow-x:auto;scrollbar-width:none;padding:0 16px}
@@ -93,7 +129,7 @@ body.drag::after{content:"Drop to add";position:fixed;inset:10px;border:3px dash
   .lb{padding:56px 8px}
   .lb .p,.lb .n{top:auto;bottom:6px;transform:none}
 }
-@media (prefers-reduced-motion:reduce){.hero .bg{transition:none}}
+@media (prefers-reduced-motion:reduce){.hero .bg{transition:none}.spark{display:none}.hero .mover{animation:none;left:50%;transform:translateX(-50%)}}
 </style>
 </head>
 <body>
@@ -102,9 +138,9 @@ body.drag::after{content:"Drop to add";position:fixed;inset:10px;border:3px dash
   <div class="bg" id="heroBg"></div>
   <div class="wash"></div>
   <div class="in">
-    <h1>Chetan Mehra</h1>
+    <h1 class="mover" id="heroName" aria-label="Chetan Mehra"><span aria-hidden="true">ChetanMehra</span></h1>
   </div>
-</section>
+  </section>
 
 <nav class="tabs" id="tabs" role="tablist" aria-label="Folders"></nav>
 
@@ -393,6 +429,38 @@ function render(){
   renderCtx();
   renderGallery();
 }
+
+/* the name, one coloured span per letter */
+function makeName(){
+  var u=document.createElement('span');
+  'ChetanMehra'.split('').forEach(function(c,n){
+    var l=document.createElement('span');l.className='ch';l.textContent=c;l.style.setProperty('--i',n);u.appendChild(l);
+  });
+  return u;
+}
+function buildName(){
+  var h=$('#heroName');if(!h)return;
+  h.innerHTML='';h.appendChild(makeName());
+}
+buildName();
+
+/* sparkles: scattered around the middle of the banner, each with its own size, colour and timing */
+function buildSparkles(count){
+  var box=document.querySelector('.hero .in');if(!box)return;
+  var colors=['#ffd54f','#ffffff','#fff59d','#ff80ab','#80deea','#b388ff','#ffab40','#a5d6a7'];
+  for(var i=0;i<count;i++){
+    var sp=document.createElement('i');sp.className='spark';sp.setAttribute('aria-hidden','true');
+    var t=2.4+Math.random()*2.2;                       /* each twinkle lasts 2.4 to 4.6 seconds */
+    sp.style.left=(50+(Math.random()-.5)*74)+'%';      /* spread around the centre, mostly over the name */
+    sp.style.top=(8+Math.random()*84)+'%';
+    sp.style.setProperty('--s',(16+Math.random()*26)+'px');
+    sp.style.setProperty('--c',colors[i%colors.length]);
+    sp.style.setProperty('--t',t.toFixed(2)+'s');
+    sp.style.setProperty('--d',(-Math.random()*t).toFixed(2)+'s');
+    box.appendChild(sp);
+  }
+}
+buildSparkles(30);
 
 /* hero background: a random photo, blurred, changing slowly */
 var heroUrl=null;
